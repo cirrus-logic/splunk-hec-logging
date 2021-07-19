@@ -1,4 +1,4 @@
-package splunk
+package logging
 
 import (
 	"net/http"
