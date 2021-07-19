@@ -1,11 +1,6 @@
 # Go-Splunk-HTTP
 A simple and lightweight HTTP Splunk logging package for Go. Instantiates a logging connection object to your Splunk server and allows you to submit log events as desired. [Uses HTTP event collection on a Splunk server](http://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector).
 
-[![GoDoc](https://godoc.org/github.com/ZachtimusPrime/Go-Splunk-HTTP/splunk?status.svg)](https://godoc.org/github.com/ZachtimusPrime/Go-Splunk-HTTP/splunk)
-[![Build Status](https://travis-ci.org/ZachtimusPrime/Go-Splunk-HTTP.svg?branch=master)](https://travis-ci.org/ZachtimusPrime/Go-Splunk-HTTP) 
-[![Coverage Status](https://coveralls.io/repos/github/ZachtimusPrime/Go-Splunk-HTTP/badge.svg?branch=master)](https://coveralls.io/github/ZachtimusPrime/Go-Splunk-HTTP?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ZachtimusPrime/Go-Splunk-HTTP)](https://goreportcard.com/report/github.com/ZachtimusPrime/Go-Splunk-HTTP) 
-
 ## Table of Contents ##
 
 * [Installation](#installation)
@@ -14,7 +9,7 @@ A simple and lightweight HTTP Splunk logging package for Go. Instantiates a logg
 ## Installation ##
 
 ```bash
-go get "github.com/ZachtimusPrime/Go-Splunk-HTTP/splunk/v2"
+go get "github.com/cirrus-logic/splunk-hec-logging"
 ```
 
 ## Usage ##
@@ -26,12 +21,12 @@ For example:
 ```go
 package main
 
-import "github.com/ZachtimusPrime/Go-Splunk-HTTP/splunk/v2"
+import "github.com/cirrus-logic/splunk-hec-logging"
 
 func main() {
 
 	// Create new Splunk client
-	splunk := splunk.NewClient(
+	splunk := logging.NewClient(
 		nil,
 		"https://{your-splunk-URL}:8088/services/collector",
 		"{your-token}",
@@ -41,7 +36,7 @@ func main() {
 	)
 		
 	// Use the client to send a log with the go host's current time
-	err := splunk.Log(
+	err := logging.Log(
 		interface{"msg": "send key/val pairs or json objects here", "msg2": "anything that is useful to you in the log event"}
 	)
 	if err != nil {
@@ -49,7 +44,7 @@ func main() {
         }
 	
 	// Use the client to send a log with a provided timestamp
-	err = splunk.LogWithTime(
+	err = logging.LogWithTime(
 		time.Now(),
 		interface{"msg": "send key/val pairs or json objects here", "msg2": "anything that is useful to you in the log event"}
 	)
@@ -58,10 +53,10 @@ func main() {
 	}
 	
 	// Use the client to send a batch of log events
-	var events []splunk.Event
+	var events []logging.Event
 	events = append(
 		events,
-		splunk.NewEvent(
+		logging.NewEvent(
 			interface{"msg": "event1"},
 			"{desired-source}",
 			"{desired-sourcetype}",
@@ -70,14 +65,14 @@ func main() {
 	)
 	events = append(
 		events,
-		splunk.NewEvent(
+		logging.NewEvent(
 			interface{"msg": "event2"},
 			"{desired-source}",
 			"{desired-sourcetype}",
 			"{desired-index}"
 		)
 	)
-	err = splunk.LogEvents(events)
+	err = logging.LogEvents(events)
 	if err != nil {
 		return err
 	}
@@ -98,16 +93,16 @@ This will give you an io.Writer you can use to direct output to splunk. However,
 Instantiate your Writer this way:
 
 ```go
-splunk.Writer{
+logging.Writer{
   Client: splunkClient
 }
 ```
-Since the type will now be splunk.Writer(), you can access the `Errors()` function, which returns a channel of errors. You can then spin up a goroutine to listen on this channel and report errors, or you can handle however you like. 
+Since the type will now be logging.Writer(), you can access the `Errors()` function, which returns a channel of errors. You can then spin up a goroutine to listen on this channel and report errors, or you can handle however you like. 
 
 Optionally, you can add more configuration to the writer.
 
 ```go
-splunk.Writer {
+logging.Writer {
   Client: splunkClient,
   FlushInterval: 10 *time.Second, // How often we'll flush our buffer
   FlushThreshold: 25, // Max messages we'll keep in our buffer, regardless of FlushInterval
