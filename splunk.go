@@ -23,6 +23,16 @@ type Event struct {
 	Event      interface{} `json:"event"`                // throw any useful key/val pairs here
 }
 
+type Metric struct {
+	Time       EventTime
+	Host       string
+	Source     string
+	SourceType string
+	Index      string
+	Event      string
+	Fields     map[string]interface{}
+}
+
 // EventTime marshals timestamps using the Splunk HTTP Event Collector's default format.
 type EventTime struct {
 	time.Time
@@ -39,13 +49,14 @@ func (t EventTime) MarshalJSON() ([]byte, error) {
 // The URL field must be defined and pointed at a Splunk servers Event Collector port (i.e. https://{your-splunk-URL}:8088/services/collector).
 // The Token field must be defined with your access token to the Event Collector.
 type Client struct {
-	HTTPClient *http.Client // HTTP client used to communicate with the API
-	URL        string
-	Hostname   string
-	Token      string
-	Source     string //Default source
-	SourceType string //Default source type
-	Index      string //Default index
+	HTTPClient   *http.Client // HTTP client used to communicate with the API
+	URL          string
+	Hostname     string
+	Token        string
+	Source       string //Default source
+	SourceType   string //Default source type
+	Index        string //Default index
+	MetricsIndex string // Default metrics index
 }
 
 // NewClient creates a new client to Splunk.
@@ -87,12 +98,16 @@ func (c *Client) NewEvent(event interface{}, source string, sourcetype string, i
 	return e
 }
 
+func (c *Client) NewMetric(fields map[string]interface{}, source string, sourcetype string, index string) *Metric {
+	return c.NewMetricWithTime(time.Now(), fields, source, sourcetype, index)
+}
+
 // NewEventWithTime creates a new log event with a specified timetamp to send to Splunk.
 // This is similar to NewEvent but if you want to log in a different time rather than time.Now this becomes handy. If that's
 // the case, use this function to create the Event object and the the LogEvent function.
 func (c *Client) NewEventWithTime(t time.Time, event interface{}, source string, sourcetype string, index string) *Event {
 	e := &Event{
-		Time:       EventTime{time.Now()},
+		Time:       EventTime{t},
 		Host:       c.Hostname,
 		Source:     source,
 		SourceType: sourcetype,
@@ -100,6 +115,18 @@ func (c *Client) NewEventWithTime(t time.Time, event interface{}, source string,
 		Event:      event,
 	}
 	return e
+}
+
+func (c *Client) NewMetricWithTime(t time.Time, fields map[string]interface{}, source string, sourcetype string, index string) *Metric {
+	return &Metric{
+		Time:       EventTime{t},
+		Event:      "metric",
+		Host:       c.Hostname,
+		Source:     source,
+		SourceType: sourcetype,
+		Index:      index,
+		Fields:     fields,
+	}
 }
 
 // Client.Log is used to construct a new log event and POST it to the Splunk server.
@@ -111,6 +138,12 @@ func (c *Client) Log(event interface{}) error {
 	// create Splunk log
 	log := c.NewEvent(event, c.Source, c.SourceType, c.Index)
 	return c.LogEvent(log)
+}
+
+func (c *Client) Track(fields map[string]interface{}) error {
+	metric := c.NewMetric(fields, c.Source, c.SourceType, c.MetricsIndex)
+	return c.LogMetric(metric)
+
 }
 
 // Client.LogWithTime is used to construct a new log event with a specified timestamp and POST it to the Splunk server.
@@ -132,11 +165,35 @@ func (c *Client) LogEvent(e *Event) error {
 	return c.doRequest(bytes.NewBuffer(b))
 }
 
+func (c *Client) LogMetric(m *Metric) error {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	return c.doRequest(bytes.NewBuffer(b))
+}
+
 // Client.LogEvents is used to POST multiple events with a single request to the Splunk server.
 func (c *Client) LogEvents(events []*Event) error {
 	buf := new(bytes.Buffer)
 	for _, e := range events {
 		b, err := json.Marshal(e)
+		if err != nil {
+			return err
+		}
+		buf.Write(b)
+		// Each json object should be separated by a blank line
+		buf.WriteString("\r\n\r\n")
+	}
+	// Convert requestBody struct to byte slice to prep for http.NewRequest
+	return c.doRequest(buf)
+}
+
+func (c *Client) LogMetrics(metrics []*Metric) error {
+	buf := new(bytes.Buffer)
+	for _, m := range metrics {
+		b, err := json.Marshal(m)
 		if err != nil {
 			return err
 		}
