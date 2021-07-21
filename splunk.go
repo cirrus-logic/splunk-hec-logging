@@ -64,7 +64,7 @@ type Client struct {
 //
 // If an httpClient object is specified it will be used instead of the
 // default http.DefaultClient.
-func NewClient(httpClient *http.Client, URL string, Token string, Source string, SourceType string, Index string) *Client {
+func NewClient(httpClient *http.Client, URL string, Token string, Source string, SourceType string, Index string, MetricsIndex string) *Client {
 	// Create a new client
 	if httpClient == nil {
 		tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: false}}
@@ -72,13 +72,14 @@ func NewClient(httpClient *http.Client, URL string, Token string, Source string,
 	}
 	hostname, _ := os.Hostname()
 	c := &Client{
-		HTTPClient: httpClient,
-		URL:        URL,
-		Hostname:   hostname,
-		Token:      Token,
-		Source:     Source,
-		SourceType: SourceType,
-		Index:      Index,
+		HTTPClient:   httpClient,
+		URL:          URL,
+		Hostname:     hostname,
+		Token:        Token,
+		Source:       Source,
+		SourceType:   SourceType,
+		Index:        Index,
+		MetricsIndex: MetricsIndex,
 	}
 	return c
 }
